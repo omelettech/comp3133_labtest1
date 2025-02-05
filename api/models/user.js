@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require("bcrypt");
 
-const schema = new mongoose.Schema(
+const userSchema = new mongoose.Schema(
     {
         name: String,
         username: String,
@@ -18,7 +18,9 @@ const schema = new mongoose.Schema(
     }
 );
 
-schema.pre('save', async function (next) {
+
+
+userSchema.pre('save', async function (next) {
     try {
         const salt = await bcrypt.genSalt(10);
         // Hash the password with salt
@@ -32,10 +34,10 @@ schema.pre('save', async function (next) {
 
 
 // hide password from response
-schema.methods.toJSON = function test() {
+userSchema.methods.toJSON = function test() {
     const obj = this.toObject();
     delete obj.password;
     return obj;
 };
 
-module.exports = mongoose.model('User', schema);
+module.exports = mongoose.model('User', userSchema);
