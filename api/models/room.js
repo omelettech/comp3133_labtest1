@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 
 const schema = new mongoose.Schema(
     {
+        name:String,
         users: [
             // all members of the room
             {
@@ -10,7 +11,7 @@ const schema = new mongoose.Schema(
                 required: true
             }
         ],
-        lastMessage: String
+
     },
     {
         timestamps: true

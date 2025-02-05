@@ -17,6 +17,6 @@ router.get('/', async (req, res) => {
 // const baseRoutes = require('./controllers/base.ontroller');
 // router.use('/api', baseRoutes);
 router.use('/api/auth', authRoutes);
-// router.use('/api/chat', chatRoutes);
+router.use('/api/chat', chatRoutes);
 
 module.exports = router;

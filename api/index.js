@@ -14,6 +14,12 @@ console.log("Starting server")
 // Middleware
 const app = express();
 app.use(express.json());
+app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*"); // Allows all origins
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    next();
+});
 const server = createServer(app);
 server.listen(process.env.PORT)
 app.use('/', routes);
