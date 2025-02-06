@@ -4,6 +4,7 @@ const { createServer } = require("http");
 // const routes = require('./routes');  // Use the path correctly here
 const routes = require("./routes");  // Ensure it's correctly pointing to the actual file
 const dotenv = require("dotenv").config();
+const socketIo = require('socket.io');
 
 mongoose.connect(process.env.MONGO_URI, {
     useUnifiedTopology: true,
@@ -24,7 +25,39 @@ const server = createServer(app);
 server.listen(process.env.PORT)
 app.use('/', routes);
 
+
+
+
+const io = socketIo(server, {
+    cors: {
+        origin: "*",  // Allow any origin to connect
+        methods: ["GET", "POST"]
+    }
+});
+io.on('connection', (socket) => {
+    console.log('A user connected:', socket.id);
+
+    // Event listeners
+    socket.on('join-room', ({ roomId, peerId }) => {
+        socket.join(roomId);
+        socket.to(roomId).emit('user-joined', { peerId });
+        console.log(`${peerId} joined room: ${roomId}`);
+    });
+
+    socket.on('send-message', ({ roomId, userId, message }) => {
+        io.to(roomId).emit('message', { user: userId, message: message });
+        console.log(`Message sent to room ${roomId}: ${message}`);
+    });
+
+    socket.on('disconnect', () => {
+        console.log('A user disconnected');
+    });
+});
+
+
 module.exports=app
+
+
 
 
 

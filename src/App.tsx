@@ -27,7 +27,7 @@ function App() {
             } else {
                 return (
                     <>
-                        <Route path={"/chatroom"} element={<Chatroom/>}/>
+                        <Route path={"/chatroom"} element={<Chatroom username={currentUser}/>}/>
                     </>
                 )
             }

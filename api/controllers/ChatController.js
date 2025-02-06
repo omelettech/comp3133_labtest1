@@ -50,7 +50,7 @@ app.get('/getGroups/:username', async (req, res) => {
         const { username } = req.params;
         const user = await getUserFromUsername(username);
 
-        const rooms = await Room.find({ userIds: user._id }).populate('userIds', 'username');
+        const rooms = await Room.find({ users: user }).populate('users', 'username');
         res.json(rooms);
     } catch (error) {
         res.status(500).send(error.message);
@@ -62,10 +62,11 @@ app.post('/createGroup', async (req, res) => {
     try {
         const { username, roomName } = req.body;
         const user = await getUserFromUsername(username);
+        console.log(user)
 
         const newRoom = new Room({
             name: roomName,
-            userIds: [user._id],
+            users: [user],
         });
         await newRoom.save();
 
@@ -79,7 +80,7 @@ app.post('/createGroup', async (req, res) => {
  */
 app.get('/getAllGroups', async (req, res) => {
     try {
-        const rooms = await Room.find().populate('userIds', 'username');
+        const rooms = await Room.find().populate('users', 'username');
         res.json(rooms);
     } catch (error) {
         res.status(500).send(error.message);
