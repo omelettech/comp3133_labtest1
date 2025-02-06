@@ -46,7 +46,7 @@ io.on('connection', (socket) => {
 
     socket.on('send-message', ({ roomId, userId, message }) => {
         io.to(roomId).emit('message', { user: userId, message: message });
-        console.log(`Message sent to room ${roomId}: ${message}`);
+        console.log(`Message sent to room ${roomId}: ${message} by ${userId}`);
     });
 
     socket.on('disconnect', () => {

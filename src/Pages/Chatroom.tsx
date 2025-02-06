@@ -1,25 +1,25 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
-import axios, {get} from "axios";
+import axios from "axios";
 
 interface Message {
-    userInfo: string;
-    roomId:string;
+    userInfo?: any;
+    roomId: string;
     message: string;
 }
 
 interface ChatContextProps {
     room: string | null;
     messages: Message[];
-    joinRoom: (username:string,room: string) => void;
-    sendMessage: (username:string,text: string) => void;
+    joinRoom: (username: string, room: string) => void;
+    sendMessage: (username: string, text: string) => void;
 }
 
 const ChatContext = createContext<ChatContextProps | undefined>(undefined);
 
 const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [room, setRoom] = useState<string | null>(null);
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [messages, setMessages] = useState<any>([]);
     const [socket, setSocket] = useState<Socket | null>(null);
 
     // Create Socket connection when component mounts
@@ -29,7 +29,7 @@ const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
         // Listen for incoming messages
         socketInstance.on("message", (data: Message) => {
-            console.log("data",data)
+            console.log("Received message:", data);
             setMessages((prevMessages) => [...prevMessages, data]);
         });
 
@@ -38,23 +38,40 @@ const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         };
     }, []);
 
-    const joinRoom = (username,roomName: string) => {
+    const joinRoom = async (username: string, roomName: string) => {
         if (!socket) return;
         setRoom(roomName);
-        // setMessages([]); // Reset messages when joining a new room
+        // Reset messages when joining a new room
+        setMessages([]);
+
+        // Fetch the chat history from the server
+        try {
+            const response = await axios.get(`http://localhost:8000/api/chat/findGroup/${roomName}`);
+
+            setMessages(response.data); // Assuming the response contains an array of messages
+            console.log(roomName)
+        } catch (error) {
+            console.error("Error fetching messages:", error);
+        }
 
         // Emit join-room event to the server
-        socket.emit("join-room", { roomId: roomName, peerId: username}); // You can replace "user1" with dynamic user ID
+        socket.emit("join-room", { roomId: roomName, peerId: username });
     };
 
-    const sendMessage = (username,text: string) => {
+    const sendMessage = async (username: string, text: string) => {
         if (!room || !socket) return;
 
-        const messageData: Message = { userInfo: username,roomId:room, message: text }; // Replace "user1" with dynamic user info
+        const messageData: any = { username: username, roomId: room, message: text };
 
+        // Send the message to the server and database via POST request
+        try {
+            await axios.post("http://localhost:8000/api/chat/sendMessage", messageData);
 
-        // Emit send-message event to the server
-        socket.emit("send-message", messageData);
+            // Emit the message to the room via socket
+            socket.emit("send-message", messageData);
+        } catch (error) {
+            console.error("Error sending message:", error);
+        }
     };
 
     return (
@@ -72,16 +89,15 @@ const useChat = () => {
 
 const RoomList = ({ username }: { username: string }) => {
     const { joinRoom } = useChat();
-    const [rooms, setRooms] = useState([]);
+    const [rooms, setRooms] = useState<any[]>([]);
 
     useEffect(() => {
         const getRooms = async () => {
             try {
                 const response = await axios.get(`http://localhost:8000/api/chat/getGroups/${username}`);
-                console.log(response.data)
-                setRooms(response.data); // Assuming response.data is an array of room names
+                setRooms(response.data); // Assuming response.data is an array of room objects
             } catch (error) {
-                console.error(error);
+                console.error("Error fetching rooms:", error);
             }
         };
 
@@ -92,37 +108,34 @@ const RoomList = ({ username }: { username: string }) => {
         <div className="w-1/3 p-4 border-r">
             <h2 className="text-lg font-bold">Rooms</h2>
             <ul>
-                {rooms.length>0 && rooms.map((room) => {
-                    return (
-                        <>
-                            <li
-                                key={room._id}
-                                className="cursor-pointer p-2 hover:bg-gray-200"
-                                onClick={() => joinRoom(username,room._id)}
-                            >
-                                {room.name}
-                            </li>
-                        </>
-                    )
-                })}
+                {rooms.length > 0 &&
+                    rooms.map((room) => (
+                        <li
+                            key={room._id}
+                            className="cursor-pointer p-2 hover:bg-gray-200"
+                            onClick={() => joinRoom(username, room._id)}
+                        >
+                            {room.name}
+                        </li>
+                    ))}
             </ul>
         </div>
     );
 };
 
-const ChatArea = (username) => {
+const ChatArea = ({ username }: { username: string }) => {
     const { room, messages, sendMessage } = useChat();
     const [input, setInput] = useState("");
-
+    console.log(messages)
     if (!room) return <div className="p-4">Join a room to start chatting!</div>;
-
+    if(!messages) return <div>No messages</div>
     return (
         <div className="w-2/3 p-4 flex flex-col">
             <h2 className="text-lg font-bold mb-2">Room: {room}</h2>
             <div className="flex-grow border p-2 overflow-y-auto">
                 {messages.map((msg, index) => (
                     <div key={index} className="mb-2">
-                        <strong>{msg.userInfo}:</strong> {msg.message}
+                        <strong>{msg.userInfo.username}:</strong> {msg.message}
                     </div>
                 ))}
             </div>
@@ -135,7 +148,7 @@ const ChatArea = (username) => {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyPress={(e) => {
                         if (e.key === "Enter" && input.trim()) {
-                            sendMessage(username,input);
+                            sendMessage(username, input);
                             setInput("");
                         }
                     }}
@@ -144,7 +157,7 @@ const ChatArea = (username) => {
                     className="ml-2 bg-blue-500 text-white p-2 rounded"
                     onClick={() => {
                         if (input.trim()) {
-                            sendMessage(username,input);
+                            sendMessage(username, input);
                             setInput("");
                         }
                     }}
@@ -157,48 +170,45 @@ const ChatArea = (username) => {
 };
 
 function UserList(props: { username: string }) {
-    const [users, setUsers] = useState(null)
+    const [users, setUsers] = useState<any[]>([]);
 
     useEffect(() => {
-        const getUsers =async ()=>{
-            const response = await axios.get("http://localhost:8000/api/chat/getUsers")
-            setUsers(response.data)
-        }
-        getUsers()
+        const getUsers = async () => {
+            try {
+                const response = await axios.get("http://localhost:8000/api/chat/getUsers");
+                setUsers(response.data);
+            } catch (error) {
+                console.error("Error fetching users:", error);
+            }
+        };
+
+        getUsers();
     }, []);
 
     return (
         <div className="w-1/3 p-4 border-r">
             <h2 className="text-lg font-bold">Users</h2>
-            {users && <ul>
-                {users.length > 0 && users.map((user) => {
-                    console.log("user",user)
-                    return (
-                        <>
-                            <li
-                                key={user.username}
-                                className="cursor-pointer p-2 hover:bg-gray-200"
-                                // onClick={() => joinRoom(room)}
-                            >
-                                {user.username}
-                            </li>
-                        </>
-                    )
-                })}
-            </ul>}
+            <ul>
+                {users.length > 0 &&
+                    users.map((user) => (
+                        <li key={user.username} className="cursor-pointer p-2 hover:bg-gray-200">
+                            {user.username}
+                        </li>
+                    ))}
+            </ul>
         </div>
-    )
+    );
 }
 
 export const Chatroom = ({ username }: { username: string }) => {
     return (
         <ChatProvider>
-            <div className="flex ">
-                <div className={"flex flex-col w-100"}>
-                    <UserList username={username}/>
-                    <RoomList username={username}/>
+            <div className="flex h-screen w-screen">
+                <div className="flex flex-col w-1/3">
+                    <UserList username={username} />
+                    <RoomList username={username} />
                 </div>
-                <ChatArea username={username}/>
+                <ChatArea username={username} />
             </div>
         </ChatProvider>
     );
